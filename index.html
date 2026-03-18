@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OKIŁ VHS</title>
+  <link rel="stylesheet" href="style.css"/>
+  <svg style="position:absolute;width:0;height:0" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <!-- Dynamicznie aktualizowany filtr CRT (barrel + fosfor) -->
+      <filter id="crt" x="-8%" y="-8%" width="116%" height="116%" color-interpolation-filters="sRGB">
+        <feColorMatrix id="fltColorMatrix" type="matrix"
+          values="1.05 0 0 0 0  0 1.02 0 0 0  0 0 0.92 0 0  0 0 0 1 0"/>
+        <feComponentTransfer id="fltBrightness" result="bright">
+          <feFuncR type="linear" slope="1"/>
+          <feFuncG type="linear" slope="1"/>
+          <feFuncB type="linear" slope="1"/>
+        </feComponentTransfer>
+        <feGaussianBlur id="fltPhosphor" stdDeviation="0" result="blur"/>
+        <feComposite in="bright" in2="blur" operator="over"/>
+      </filter>
+    </defs>
+  </svg>
+</head>
+<body>
+
+  <video id="videoEl" style="display:none" playsinline crossorigin="anonymous"></video>
+  <input type="file" id="fileInput" style="position:fixed;top:0;left:0;width:100%;height:100%;opacity:0;z-index:9999;cursor:pointer;display:none"/>
+
+  <!-- Drop overlay -->
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-box">
+      <div class="drop-emoji">📼</div>
+      <div class="drop-title">Upuść plik wideo</div>
+      <div class="drop-sub">MP4 · WebM · MOV · AVI · MKV</div>
+    </div>
+  </div>
+
+  <!-- Settings drawer -->
+  <aside class="settings-drawer" id="settingsDrawer">
+    <div class="settings-header">
+      <span class="settings-title">⚙ USTAWIENIA EKRANU</span>
+      <button class="settings-close" id="settingsClose">✕</button>
+    </div>
+
+    <div class="settings-body">
+
+      <!-- SEKCJA: OBRAZ -->
+      <div class="s-section">
+        <div class="s-section-title">▸ OBRAZ</div>
+
+        <div class="s-row">
+          <label>JASNOŚĆ</label>
+          <input type="range" id="sBrightness" min="50" max="150" value="100"/>
+          <span id="sBrightnessVal">100</span>
+        </div>
+        <div class="s-row">
+          <label>KONTRAST</label>
+          <input type="range" id="sContrast" min="50" max="200" value="105"/>
+          <span id="sContrastVal">105</span>
+        </div>
+        <div class="s-row">
+          <label>NASYCENIE</label>
+          <input type="range" id="sSaturation" min="0" max="200" value="115"/>
+          <span id="sSaturationVal">115</span>
+        </div>
+        <div class="s-row">
+          <label>OSTROŚĆ</label>
+          <input type="range" id="sSharpness" min="0" max="100" value="30"/>
+          <span id="sSharpnessVal">30</span>
+        </div>
+      </div>
+
+      <!-- SEKCJA: CRT -->
+      <div class="s-section">
+        <div class="s-section-title">▸ EFEKTY CRT</div>
+
+        <div class="s-row">
+          <label>SKRZYWIENIE</label>
+          <input type="range" id="sCurvature" min="0" max="100" value="30"/>
+          <span id="sCurvatureVal">30</span>
+        </div>
+        <div class="s-row">
+          <label>POŚWIATA</label>
+          <input type="range" id="sPhosphor" min="0" max="100" value="20"/>
+          <span id="sPhosphorVal">20</span>
+        </div>
+        <div class="s-row">
+          <label>WINIETOWANIE</label>
+          <input type="range" id="sVignette" min="0" max="100" value="55"/>
+          <span id="sVignetteVal">55</span>
+        </div>
+        <div class="s-row">
+          <label>LINIE SKANUJ.</label>
+          <input type="range" id="sScanlines" min="0" max="100" value="40"/>
+          <span id="sScanlinesVal">40</span>
+        </div>
+        <div class="s-row s-row-toggle">
+          <label>MIGOTANIE</label>
+          <button class="toggle-btn" id="sFlicker" data-on="false">OFF</button>
+        </div>
+        <div class="s-row s-row-toggle">
+          <label>PRZEPLATANIE</label>
+          <button class="toggle-btn" id="sInterlace" data-on="false">OFF</button>
+        </div>
+      </div>
+
+      <!-- SEKCJA: FOSFOR -->
+      <div class="s-section">
+        <div class="s-section-title">▸ TYP FOSFORU</div>
+        <div class="s-phosphor-picks">
+          <button class="phos-btn active" data-phos="white"  style="--c:#e8eeff">BIAŁY</button>
+          <button class="phos-btn"        data-phos="green"  style="--c:#00ff80">ZIELONY</button>
+          <button class="phos-btn"        data-phos="amber"  style="--c:#ffb000">BURSZTYN</button>
+          <button class="phos-btn"        data-phos="blue"   style="--c:#60b0ff">NIEBIESKI</button>
+        </div>
+      </div>
+
+      <!-- SEKCJA: TEMPERATURA BARW -->
+      <div class="s-section">
+        <div class="s-section-title">▸ TEMPERATURA BARW</div>
+        <div class="s-row">
+          <label>CIEPŁO ↔ ZIMNO</label>
+          <input type="range" id="sColorTemp" min="-100" max="100" value="0"/>
+          <span id="sColorTempVal">0</span>
+        </div>
+      </div>
+
+      <!-- SEKCJA: USTERKI -->
+      <div class="s-section">
+        <div class="s-section-title">▸ USTERKI VHS</div>
+
+        <div class="s-row">
+          <label>SZUM</label>
+          <input type="range" id="fxNoise" min="0" max="100" value="40"/>
+          <span id="fxNoiseVal">40</span>
+        </div>
+        <div class="s-row">
+          <label>ABERRACJA</label>
+          <input type="range" id="fxChroma" min="0" max="100" value="50"/>
+          <span id="fxChromaVal">50</span>
+        </div>
+        <div class="s-row">
+          <label>ŚLEDZENIE</label>
+          <input type="range" id="fxTracking" min="0" max="100" value="85"/>
+          <span id="fxTrackingVal">85</span>
+        </div>
+        <div class="s-row">
+          <label>ROZMYCIE</label>
+          <input type="range" id="fxBlur" min="0" max="100" value="30"/>
+          <span id="fxBlurVal">30</span>
+        </div>
+        <div class="s-row s-row-toggle">
+          <label>ROLOWANIE H</label>
+          <button class="toggle-btn" id="sHRoll" data-on="false">OFF</button>
+        </div>
+        <div class="s-row s-row-toggle">
+          <label>MAGNETYZM</label>
+          <button class="toggle-btn" id="sMagnetic" data-on="false">OFF</button>
+        </div>
+        <div class="s-row">
+          <label>TAPE WARP</label>
+          <input type="range" id="fxWarp" min="0" max="100" value="0"/>
+          <span id="fxWarpVal">0</span>
+        </div>
+        <div class="s-row s-row-toggle">
+          <label>WOW/FLUTTER</label>
+          <button class="toggle-btn" id="sWowFlutter" data-on="false">OFF</button>
+        </div>
+      </div>
+
+      <!-- SEKCJA: PRĘDKOŚĆ TAŚMY -->
+      <div class="s-section">
+        <div class="s-section-title">▸ PRĘDKOŚĆ TAŚMY</div>
+        <div class="s-tape-modes">
+          <button class="tape-mode-btn active" data-mode="SP">SP<br><small>standardowa</small></button>
+          <button class="tape-mode-btn"        data-mode="LP">LP<br><small>długa</small></button>
+          <button class="tape-mode-btn"        data-mode="EP">EP<br><small>b. długa</small></button>
+        </div>
+      </div>
+
+      <!-- Reset -->
+      <button class="s-reset-btn" id="sReset">↺ PRZYWRÓĆ DOMYŚLNE</button>
+
+    </div>
+  </aside>
+
+  <!-- Główna strona -->
+  <div class="page" id="page">
+
+    <div class="tv-wrap" id="tvWrap">
+
+      <!-- Ramka TV -->
+      <div class="tv-bezel" id="tvBezel">
+
+        <div class="tv-top-bar">
+          <div class="tv-brand-wrap">
+            <span class="tv-brand">OKIŁ</span>
+            <span class="tv-model">COLOR TV · 32"</span>
+          </div>
+          <div class="tv-top-controls">
+            <div class="tv-led" id="tvLed"></div>
+            <button class="icon-btn" id="settingsBtn" title="Ustawienia ekranu">⚙</button>
+            <button class="icon-btn" id="fullscreenBtn" title="Pełny ekran (F11)">⛶</button>
+          </div>
+        </div>
+
+        <!-- Ekran -->
+        <div class="screen-shell">
+          <div class="crt-halo" id="crtHalo"></div>
+          <div class="screen" id="screen">
+            <canvas id="vhsCanvas"></canvas>
+            <iframe id="channelFrame" style="display:none;position:absolute;inset:0;width:100%;height:100%;border:none;z-index:1;" allowfullscreen allow="autoplay"></iframe>
+
+            <!-- CRT warstwy (zarządzane przez CSS vars) -->
+            <div class="crt-bloom"      id="crtBloom"></div>
+            <div class="crt-scanlines"  id="crtScanlines"></div>
+            <div class="crt-vignette"   id="crtVignette"></div>
+            <div class="crt-curvature"  id="crtCurvature"></div>
+            <div class="crt-glare"></div>
+            <div class="crt-flicker"    id="crtFlicker"></div>
+            <div class="crt-interlace"  id="crtInterlace"></div>
+            <div class="crt-hroll"      id="crtHRoll"></div>
+            <div class="crt-magnetic"   id="crtMagnetic"></div>
+            <div class="noise-layer"    id="noiseLayer"></div>
+
+            <!-- OSD -->
+            <div class="osd">
+              <div class="osd-rec"  id="recIndicator">● REC</div>
+              <div class="osd-ch"   id="channelLabel">CH 3</div>
+              <div class="osd-time" id="timestamp">SP 0:00:00</div>
+              <div class="osd-mode" id="tapeModeLabel">SP</div>
+            </div>
+
+            <!-- Seek (pojawia się przy hover) -->
+            <div class="seekbar" id="seekbar">
+              <div class="seekbar-track" id="seekTrack">
+                <div class="seekbar-fill"  id="seekFill"></div>
+                <div class="seekbar-thumb" id="seekThumb"></div>
+              </div>
+              <div class="seekbar-times">
+                <span id="seekCur">0:00</span>
+                <span id="seekDur">0:00</span>
+              </div>
+            </div>
+
+            <div class="tv-off-screen" id="tvOffScreen">
+              <div class="tv-off-dot"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VCR -->
+        <div class="vcr" id="vcr">
+
+          <!-- Slot + display -->
+          <div class="vcr-info">
+            <div class="vcr-slot" id="vcr-slot">
+              <div class="slot-placeholder">▰▰▰</div>
+              <div class="slot-loaded" id="slotLoaded">
+                <div class="slot-reels-wrap">
+                  <div class="sl-reel" id="reelL"></div>
+                  <div class="sl-tape"></div>
+                  <div class="sl-reel" id="reelR"></div>
+                </div>
+                <div class="slot-name" id="slotName">···</div>
+              </div>
+            </div>
+            <div class="vcr-disp">
+              <div class="vd-mode"  id="displayMode">STOP</div>
+              <div class="vd-time"  id="displayTime">0:00:00</div>
+              <div class="vd-clock" id="vcrClock">12:00</div>
+            </div>
+          </div>
+
+          <!-- Transport -->
+          <div class="vcr-transport">
+            <div class="transport-row">
+              <button class="tb" id="btnRew">   <i>⏮</i><s>REW</s>  </button>
+              <button class="tb tb-play"  id="btnPlay">  <i>▶</i><s>PLAY</s> </button>
+              <button class="tb tb-stop"  id="btnStop">  <i>■</i><s>STOP</s> </button>
+              <button class="tb" id="btnPause"> <i>⏸</i><s>PAUSE</s></button>
+              <button class="tb" id="btnFF">    <i>⏭</i><s>FF</s>   </button>
+              <button class="tb tb-rec"   id="btnRec">   <i>⏺</i><s>REC</s>  </button>
+              <button class="tb tb-eject" id="btnEject"> <i>⏏</i><s>EJECT</s></button>
+            </div>
+            <div class="tape-progress-row">
+              <span class="tp-label">TAŚMA</span>
+              <div class="tp-bar" id="tapeBar"><div class="tp-fill" id="tapeFill"></div></div>
+              <span class="tp-pct" id="tapePct">0%</span>
+            </div>
+          </div>
+
+          <!-- Prawa strona -->
+          <div class="vcr-actions">
+            <button class="action-btn load-file-btn" id="loadBtn">📂 Wgraj</button>
+            <div class="ch-group">
+              <button class="ch-btn" id="chUp">▲</button>
+              <div class="ch-display" id="chDisplay">CH 3</div>
+              <button class="ch-btn" id="chDn">▼</button>
+            </div>
+            <button class="action-btn" id="settingsBtnVcr">⚙ Ustawienia</button>
+          </div>
+
+        </div><!-- /vcr -->
+
+      </div><!-- /tv-bezel -->
+    </div><!-- /tv-wrap -->
+
+  </div><!-- /page -->
+
+  <script src="script.js"></script>
+</body>
+</html>
