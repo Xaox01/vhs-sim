@@ -46,14 +46,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 }
 .tb-logo { font-family: 'VT323', monospace; font-size: 28px; color: var(--accent); letter-spacing: 3px; white-space: nowrap; }
 .tb-logo em { color: var(--dim); font-style: normal; font-size: 14px; margin-left: 6px; }
-.day-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
-.day-nav button {
-  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
-  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
-  font-family: inherit; font-size: 13px; transition: border-color .15s, color .15s;
+.sim-date-bar { display: flex; align-items: center; gap: 10px; margin: 0 auto; }
+.sim-date-icon { font-size: 18px; }
+.sim-date-label {
+  font-family: 'VT323', monospace; font-size: 22px; color: var(--accent);
+  letter-spacing: 2px; text-transform: uppercase;
 }
-.day-nav button:hover { border-color: var(--accent); color: var(--accent); }
-.day-label { font-size: 13px; color: var(--text); min-width: 220px; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+.sim-date-badge {
+  font-size: 9px; letter-spacing: 2px; color: var(--accent);
+  border: 1px solid var(--accent); border-radius: 3px;
+  padding: 2px 6px; opacity: .6;
+}
 .tb-right { display: flex; gap: 8px; align-items: center; }
 
 /* Buttons */
@@ -244,13 +247,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .form-select option { background: var(--panel2); }
 .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
-.days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 2px; }
-.day-chip {
-  background: var(--panel2); border: 1px solid var(--border); border-radius: 4px;
-  padding: 5px 2px; text-align: center; font-size: 10px; cursor: pointer;
-  transition: all .12s; user-select: none;
-}
-.day-chip.on { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
 
 .modal-actions { display: flex; gap: 8px; margin-top: 20px; align-items: center; }
 .modal-actions .spacer { flex: 1; }
@@ -291,10 +287,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <!-- Topbar -->
   <div class="topbar">
     <div class="tb-logo">OKIŁ <em>RAMÓWKA</em></div>
-    <div class="day-nav">
-      <button id="prevDay" title="Poprzedni dzień">◀</button>
-      <div class="day-label" id="dayLabel">—</div>
-      <button id="nextDay" title="Następny dzień">▶</button>
+    <div class="sim-date-bar">
+      <span class="sim-date-icon">📅</span>
+      <span class="sim-date-label" id="simDateLabel">—</span>
+      <span class="sim-date-badge">SYMULACJA</span>
     </div>
     <div class="tb-right">
       <button class="btn" id="addChannelBtn">+ Kanał</button>
@@ -372,18 +368,6 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
         <option value="">— bez pliku —</option>
       </select>
     </div>
-    <div class="form-group">
-      <label class="form-label">Dni tygodnia</label>
-      <div class="days-grid" id="daysGrid">
-        <div class="day-chip on" data-d="1">Pn</div>
-        <div class="day-chip on" data-d="2">Wt</div>
-        <div class="day-chip on" data-d="3">Śr</div>
-        <div class="day-chip on" data-d="4">Cz</div>
-        <div class="day-chip on" data-d="5">Pt</div>
-        <div class="day-chip on" data-d="6">Sb</div>
-        <div class="day-chip on" data-d="0">Nd</div>
-      </div>
-    </div>
     <div class="modal-actions">
       <button class="btn btn-danger" id="entryDel" style="display:none">Usuń</button>
       <div class="spacer"></div>
@@ -430,12 +414,27 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 // ─── State ────────────────────────────────────────────────────────────────────
 let schedule    = { channels: [], entries: [] };
 let videos      = [];
-let currentDay  = new Date().getDay(); // 0=Nd, 1=Pn …
 let editEntry   = null;
 let editChannel = null;
 
 const DAYS       = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const MONTHS_PL  = ['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
 const HOUR_H     = 64; // px per hour (must match --hour-h)
+
+function getSimulationDow() {
+  if (schedule.simulationDate) {
+    const [y, m, d] = schedule.simulationDate.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay();
+  }
+  return new Date().getDay();
+}
+
+function formatSimDate() {
+  if (!schedule.simulationDate) return '—';
+  const [y, m, d] = schedule.simulationDate.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return `${DAYS[date.getDay()]}, ${d} ${MONTHS_PL[m-1]} ${y}`;
+}
 const CH_PRESETS = ['#e63030','#2060e8','#e8a020','#e83060','#22aa44','#8822cc',
                     '#00aacc','#ee6600','#cc8800','#cc4488','#aabb00','#ff6688'];
 
@@ -462,19 +461,10 @@ async function init() {
 
 // ─── Render ───────────────────────────────────────────────────────────────────
 function render() {
-  renderDayLabel();
+  document.getElementById('simDateLabel').textContent = formatSimDate();
   renderChannels();
   renderGrid();
   renderVideos();
-}
-
-function renderDayLabel() {
-  const base = new Date();
-  const diff = currentDay - base.getDay();
-  const d = new Date(base); d.setDate(base.getDate() + diff);
-  const dd = d.getDate().toString().padStart(2,'0');
-  const mm = (d.getMonth()+1).toString().padStart(2,'0');
-  document.getElementById('dayLabel').textContent = `${DAYS[currentDay]}, ${dd}.${mm}`;
 }
 
 function renderChannels() {
@@ -526,7 +516,10 @@ function renderGrid() {
     return;
   }
 
-  const dayEntries = schedule.entries.filter(e => e.days && e.days.includes(currentDay));
+  const simDow     = getSimulationDow();
+  const dayEntries = schedule.entries.filter(e =>
+    !Array.isArray(e.days) || e.days.length === 0 || e.days.includes(simDow)
+  );
 
   schedule.channels.forEach(ch => {
     // Header
@@ -555,13 +548,11 @@ function renderGrid() {
     body.appendChild(col);
   });
 
-  // Now-line (today only)
-  if (new Date().getDay() === currentDay) {
-    const line = document.createElement('div');
-    line.className = 'now-line'; line.id = 'nowLine';
-    updateNowLineEl(line);
-    body.appendChild(line);
-  }
+  // Now-line (current time of day)
+  const line = document.createElement('div');
+  line.className = 'now-line'; line.id = 'nowLine';
+  updateNowLineEl(line);
+  body.appendChild(line);
 }
 
 function makeEntryEl(entry, ch) {
@@ -624,14 +615,6 @@ function refreshVideoSelect() {
   sel.value = cur;
 }
 
-// ─── Day nav ──────────────────────────────────────────────────────────────────
-document.getElementById('prevDay').addEventListener('click', () => {
-  currentDay = (currentDay + 6) % 7; render();
-});
-document.getElementById('nextDay').addEventListener('click', () => {
-  currentDay = (currentDay + 1) % 7; render();
-});
-
 // ─── Entry modal ──────────────────────────────────────────────────────────────
 function openEntryModal(entry, chId, startTime, endTime) {
   editEntry = entry || null;
@@ -653,9 +636,6 @@ function openEntryModal(entry, chId, startTime, endTime) {
     document.getElementById('fEnd').value   = entry.endTime;
     refreshVideoSelect();
     document.getElementById('fVideo').value = entry.videoFile || '';
-    document.querySelectorAll('#daysGrid .day-chip').forEach(c =>
-      c.classList.toggle('on', (entry.days || []).includes(+c.dataset.d))
-    );
   } else {
     chSel.value = chId || schedule.channels[0]?.id;
     document.getElementById('fTitle').value = '';
@@ -663,7 +643,6 @@ function openEntryModal(entry, chId, startTime, endTime) {
     document.getElementById('fEnd').value   = endTime   || '13:00';
     refreshVideoSelect();
     document.getElementById('fVideo').value = '';
-    document.querySelectorAll('#daysGrid .day-chip').forEach(c => c.classList.add('on'));
   }
 
   document.getElementById('entryModal').classList.add('open');
@@ -675,23 +654,19 @@ function closeEntryModal() {
   editEntry = null;
 }
 
-document.querySelectorAll('#daysGrid .day-chip').forEach(c =>
-  c.addEventListener('click', () => c.classList.toggle('on'))
-);
 document.getElementById('entryCancel').addEventListener('click', closeEntryModal);
 document.getElementById('entryModal').addEventListener('click', e => {
   if (e.target.id === 'entryModal') closeEntryModal();
 });
 
 document.getElementById('entrySave').addEventListener('click', async () => {
-  const days = [...document.querySelectorAll('#daysGrid .day-chip.on')].map(c => +c.dataset.d);
   const data = {
     channelId: +document.getElementById('fCh').value,
     title:     document.getElementById('fTitle').value.trim(),
     startTime: document.getElementById('fStart').value,
     endTime:   document.getElementById('fEnd').value,
     videoFile: document.getElementById('fVideo').value,
-    days,
+    days:      [getSimulationDow()],   // zawsze tylko dzień symulacji
   };
   if (!data.startTime || !data.endTime) { showToast('Podaj godziny'); return; }
   if (toMins(data.startTime) >= toMins(data.endTime)) { showToast('Godzina końca musi być po starcie'); return; }
