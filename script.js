@@ -391,13 +391,44 @@ const CHANNELS = {
   7: { draw: 'news',      name: 'TVX INFO',  program: 'Wiadomości' },
 };
 
+// ── Ramówka ───────────────────────────────────────────────────────────────────
+let scheduleData = { channels: [], entries: [] };
+
+function schedMins(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function getCurrentEntry(channelId) {
+  const now  = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const dow  = now.getDay();
+  return scheduleData.entries.find(e =>
+    e.channelId === channelId &&
+    Array.isArray(e.days) && e.days.includes(dow) &&
+    schedMins(e.startTime) <= mins &&
+    schedMins(e.endTime)   >  mins
+  ) || null;
+}
+
+function schedChannelCount() {
+  return scheduleData.channels.length || 12;
+}
+
+async function loadSchedule() {
+  if (location.protocol === 'file:') return;
+  try { scheduleData = await fetch('/api/schedule').then(r => r.json()); }
+  catch(e) { /* serwer niedostępny, fallback na CHANNELS */ }
+}
+
 const channelFrame = document.getElementById('channelFrame');
 let channelActive = false;
 let channelDraw   = null;   // nazwa funkcji rysującej kanał proceduralny
 let chSwitching   = 0;      // licznik klatek szumu przy zmianie kanału
 
-document.getElementById('chUp').addEventListener('click', () => { channel=(channel%12)+1; updateCh(); });
-document.getElementById('chDn').addEventListener('click', () => { channel=channel>1?channel-1:12; updateCh(); });
+document.getElementById('chUp').addEventListener('click', () => { channel = channel >= schedChannelCount() ? 1 : channel + 1; updateCh(); });
+document.getElementById('chDn').addEventListener('click', () => { channel = channel <= 1 ? schedChannelCount() : channel - 1; updateCh(); });
 
 function updateCh() {
   osdCh.textContent     = `CH ${channel}`;
@@ -412,9 +443,39 @@ function updateCh() {
   channelActive = false;
   chSwitching   = 22;  // ~360ms szumu na zmianie kanału
 
+  // Sprawdź ramówkę
+  const schedCh = scheduleData.channels.find(c => c.id === channel);
+  if (schedCh) {
+    const entry = getCurrentEntry(channel);
+    showChBanner(channel, { name: schedCh.name, program: entry?.title || '·' });
+    if (!tapeInserted) insertTape();
+    slotName.textContent = schedCh.name;
+
+    if (entry?.videoFile) {
+      setTimeout(() => {
+        videoEl.src    = entry.videoFile;
+        videoEl.loop   = false;
+        videoEl.volume = 0.85;
+        videoEl.load();
+        hasVideo      = true;
+        channelActive = true;
+        videoEl.addEventListener('canplay', () => {
+          // Seekuj do bieżącej pozycji w programie (symulacja live TV)
+          const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
+          const offsetSec = (nowMins - schedMins(entry.startTime)) * 60;
+          if (offsetSec > 1 && isFinite(videoEl.duration) && offsetSec < videoEl.duration) {
+            videoEl.currentTime = offsetSec;
+          }
+          setState(ST.PLAY);
+        }, { once: true });
+      }, 380);
+    }
+    return;
+  }
+
+  // Fallback: hardcoded CHANNELS
   const ch = CHANNELS[channel];
   showChBanner(channel, ch);
-
   if (!ch) return;
   if (!tapeInserted) insertTape();
   slotName.textContent = ch.name;
@@ -1321,9 +1382,10 @@ function pollGamepad() {
         case 'ff':       btns.ff.click();      break;
         case 'eject':    btns.eject.click();   break;
         case 'settings': settingsDrawer.classList.toggle('open'); break;
-        case 'ch-up':    channel = (channel % 12) + 1; updateCh(); wsSendState(); break;
-        case 'ch-dn':    channel = channel > 1 ? channel - 1 : 12; updateCh(); wsSendState(); break;
-        case 'ch-set':   if (d.ch >= 1 && d.ch <= 12) { channel = d.ch; updateCh(); wsSendState(); } break;
+        case 'ch-up':    channel = channel >= schedChannelCount() ? 1 : channel + 1; updateCh(); wsSendState(); break;
+        case 'ch-dn':    channel = channel <= 1 ? schedChannelCount() : channel - 1; updateCh(); wsSendState(); break;
+        case 'ch-set':   if (d.ch >= 1 && d.ch <= schedChannelCount()) { channel = d.ch; updateCh(); wsSendState(); } break;
+        case undefined:  if (d.type === 'schedule') { scheduleData = d.data; } break;
         case 'vol-up':   videoEl.volume = Math.min(1, videoEl.volume + 0.05); wsSendState(); break;
         case 'vol-dn':   videoEl.volume = Math.max(0, videoEl.volume - 0.05); wsSendState(); break;
         case 'vol-set':  if (d.vol !== undefined) videoEl.volume = Math.max(0, Math.min(1, d.vol)); break;
@@ -1344,3 +1406,4 @@ function pollGamepad() {
 // ── Start ─────────────────────────────────────────────────────────────────────
 setState(ST.STOP);
 requestAnimationFrame(loop);
+loadSchedule();

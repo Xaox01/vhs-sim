@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ramówka — OKIŁ</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #09090f;
+  --panel:   #0f0f1a;
+  --panel2:  #161624;
+  --border:  #1e1e32;
+  --accent:  #00e87a;
+  --blue:    #3388ff;
+  --danger:  #ff3333;
+  --text:    #b8c2d8;
+  --dim:     #505868;
+  --topbar:  50px;
+  --sbl:     210px;
+  --sbr:     256px;
+  --hour-h:  64px;
+  --time-w:  54px;
+  --min-ch:  148px;
+}
+
+html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
+  color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 13px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--panel); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #2e2e4e; }
+
+/* ─── Layout ─────────────────────────────────────────────────── */
+.app { display: flex; flex-direction: column; height: 100vh; }
+
+/* Topbar */
+.topbar {
+  height: var(--topbar); flex-shrink: 0;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; padding: 0 14px;
+  z-index: 100;
+}
+.tb-logo { font-family: 'VT323', monospace; font-size: 28px; color: var(--accent); letter-spacing: 3px; white-space: nowrap; }
+.tb-logo em { color: var(--dim); font-style: normal; font-size: 14px; margin-left: 6px; }
+.day-nav { display: flex; align-items: center; gap: 8px; margin: 0 auto; }
+.day-nav button {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
+  font-family: inherit; font-size: 13px; transition: border-color .15s, color .15s;
+}
+.day-nav button:hover { border-color: var(--accent); color: var(--accent); }
+.day-label { font-size: 13px; color: var(--text); min-width: 220px; text-align: center; text-transform: uppercase; letter-spacing: 1px; }
+.tb-right { display: flex; gap: 8px; align-items: center; }
+
+/* Buttons */
+.btn {
+  background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+  padding: 5px 12px; border-radius: 4px; cursor: pointer; font-family: inherit;
+  font-size: 12px; white-space: nowrap; transition: border-color .15s, color .15s;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-accent { background: var(--accent) !important; color: #000 !important; border-color: var(--accent) !important; font-weight: bold; }
+.btn-accent:hover { background: #00ff8a !important; }
+.btn-danger { border-color: var(--danger) !important; color: var(--danger) !important; }
+.btn-danger:hover { background: rgba(255,51,51,.08) !important; }
+.btn-link { color: var(--dim); text-decoration: none; font-size: 12px; padding: 5px 10px; border-radius: 4px; border: 1px solid transparent; transition: all .15s; font-family: inherit; background: none; cursor: pointer; }
+.btn-link:hover { border-color: var(--border); color: var(--text); }
+
+/* Workspace */
+.workspace { flex: 1; display: flex; overflow: hidden; }
+
+/* ─── Left sidebar ───────────────────────────────────────────── */
+.sidebar-left {
+  width: var(--sbl); flex-shrink: 0;
+  background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sb-head {
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.5px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sb-head .btn { padding: 3px 8px; font-size: 11px; }
+.ch-list { flex: 1; overflow-y: auto; padding: 6px; }
+
+.ch-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px; border-radius: 6px; cursor: pointer;
+  border: 1px solid transparent; margin-bottom: 3px; transition: background .12s;
+}
+.ch-item:hover { background: var(--panel2); }
+.ch-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.ch-name { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ch-num { font-size: 10px; color: var(--dim); flex-shrink: 0; }
+.ch-edit { background: none; border: none; color: var(--dim); cursor: pointer; font-size: 15px; opacity: 0; transition: opacity .12s; padding: 0 2px; }
+.ch-item:hover .ch-edit { opacity: 1; }
+
+/* ─── Grid area ──────────────────────────────────────────────── */
+.grid-area { flex: 1; overflow: auto; background: var(--bg); position: relative; }
+.grid-inner { display: flex; flex-direction: column; min-width: fit-content; }
+
+.grid-header {
+  display: flex; position: sticky; top: 0; z-index: 20;
+  background: var(--panel); border-bottom: 2px solid var(--border);
+}
+.grid-corner { width: var(--time-w); flex-shrink: 0; border-right: 1px solid var(--border); }
+.ch-head {
+  min-width: var(--min-ch); flex: 1;
+  padding: 10px 8px; border-right: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 1px; overflow: hidden;
+}
+.ch-head-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.ch-head-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.grid-body {
+  display: flex; position: relative;
+  height: calc(var(--hour-h) * 24);
+}
+.time-col { width: var(--time-w); flex-shrink: 0; border-right: 1px solid var(--border); position: relative; }
+.hour-mark {
+  position: absolute; width: 100%; height: var(--hour-h);
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  padding: 3px 6px 0 0; font-size: 10px; color: var(--dim);
+  border-bottom: 1px solid var(--border);
+}
+
+.ch-col {
+  min-width: var(--min-ch); flex: 1; border-right: 1px solid var(--border);
+  position: relative; cursor: crosshair;
+}
+/* Hour grid lines */
+.ch-col::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0, var(--border) 1px,
+    transparent 1px, transparent var(--hour-h)
+  );
+}
+/* Half-hour lines */
+.ch-col::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--hour-h) / 2 - 1px),
+    #13132000 calc(var(--hour-h) / 2 - 1px),
+    #1a1a2c calc(var(--hour-h) / 2),
+    transparent calc(var(--hour-h) / 2),
+    transparent var(--hour-h)
+  );
+}
+
+/* Schedule entries */
+.sched-entry {
+  position: absolute; left: 3px; right: 3px;
+  border-radius: 5px; padding: 4px 7px; overflow: hidden;
+  cursor: pointer; z-index: 2; min-height: 18px;
+  border-left: 3px solid; transition: filter .15s;
+}
+.sched-entry:hover { filter: brightness(1.25); z-index: 3; }
+.entry-time  { font-size: 10px; opacity: .75; white-space: nowrap; }
+.entry-title { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.entry-file  { font-size: 10px; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+
+/* Now-line */
+.now-line {
+  position: absolute; left: var(--time-w); right: 0; height: 2px;
+  background: var(--accent); z-index: 10; pointer-events: none;
+}
+.now-line::before {
+  content: ''; position: absolute; left: -5px; top: -4px;
+  width: 10px; height: 10px; background: var(--accent); border-radius: 50%;
+}
+
+/* Empty state */
+.grid-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px; color: var(--dim); font-size: 13px;
+}
+.grid-empty .ge-icon { font-size: 36px; }
+
+/* ─── Right sidebar ──────────────────────────────────────────── */
+.sidebar-right {
+  width: var(--sbr); flex-shrink: 0;
+  background: var(--panel); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.upload-zone {
+  margin: 10px; border: 2px dashed var(--border); border-radius: 8px;
+  padding: 14px 10px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s; position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over { border-color: var(--accent); background: rgba(0,232,122,.04); }
+.upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.uz-icon { font-size: 24px; margin-bottom: 5px; }
+.uz-text { font-size: 11px; color: var(--dim); line-height: 1.5; }
+.uz-text strong { color: var(--accent); }
+
+.up-progress { margin: 0 10px 6px; display: none; }
+.up-bar { height: 3px; background: var(--panel2); border-radius: 2px; overflow: hidden; }
+.up-fill { height: 100%; background: var(--accent); width: 0; transition: width .2s; }
+.up-label { font-size: 10px; color: var(--dim); margin-top: 3px; }
+
+.vid-list { flex: 1; overflow-y: auto; padding: 6px; }
+.vid-empty { padding: 16px; color: var(--dim); font-size: 11px; text-align: center; }
+.vid-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 8px; border-radius: 5px; cursor: pointer;
+  border: 1px solid transparent; margin-bottom: 2px; transition: background .1s;
+}
+.vid-item:hover { background: var(--panel2); border-color: var(--border); }
+.vid-item.selected { border-color: var(--accent); background: rgba(0,232,122,.05); }
+.vid-icon { font-size: 18px; flex-shrink: 0; }
+.vid-name { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ─── Modal ──────────────────────────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,.72); z-index: 200;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  width: 430px; max-width: 92vw; max-height: 88vh; overflow-y: auto; padding: 24px;
+}
+.modal-title { font-family: 'VT323', monospace; font-size: 24px; color: var(--accent); margin-bottom: 18px; letter-spacing: 2px; }
+
+.form-group { margin-bottom: 14px; }
+.form-label { display: block; font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1.2px; margin-bottom: 5px; }
+.form-input, .form-select {
+  width: 100%; background: var(--panel2); border: 1px solid var(--border);
+  color: var(--text); padding: 8px 10px; border-radius: 5px;
+  font-family: inherit; font-size: 13px; transition: border-color .15s;
+}
+.form-input:focus, .form-select:focus { outline: none; border-color: var(--accent); }
+.form-select option { background: var(--panel2); }
+.time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 2px; }
+.day-chip {
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 4px;
+  padding: 5px 2px; text-align: center; font-size: 10px; cursor: pointer;
+  transition: all .12s; user-select: none;
+}
+.day-chip.on { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
+
+.modal-actions { display: flex; gap: 8px; margin-top: 20px; align-items: center; }
+.modal-actions .spacer { flex: 1; }
+
+/* Channel modal color picker */
+.color-grid { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.color-swatch {
+  width: 26px; height: 26px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: transform .15s, border-color .15s;
+}
+.color-swatch:hover { transform: scale(1.15); }
+.color-swatch.on { border-color: #fff; transform: scale(1.2); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--panel2); border: 1px solid var(--accent); color: var(--accent);
+  padding: 8px 20px; border-radius: 6px; font-size: 13px;
+  opacity: 0; transition: opacity .25s, transform .25s;
+  z-index: 9999; pointer-events: none;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="tb-logo">OKIŁ <em>RAMÓWKA</em></div>
+    <div class="day-nav">
+      <button id="prevDay" title="Poprzedni dzień">◀</button>
+      <div class="day-label" id="dayLabel">—</div>
+      <button id="nextDay" title="Następny dzień">▶</button>
+    </div>
+    <div class="tb-right">
+      <button class="btn" id="addChannelBtn">+ Kanał</button>
+      <a href="/" class="btn-link">← Odtwarzacz</a>
+    </div>
+  </div>
+
+  <!-- Workspace -->
+  <div class="workspace">
+
+    <!-- Left: channels -->
+    <div class="sidebar-left">
+      <div class="sb-head">
+        <span>Kanały</span>
+        <button class="btn" id="addChSmall">+</button>
+      </div>
+      <div class="ch-list" id="chList"></div>
+    </div>
+
+    <!-- Center: schedule grid -->
+    <div class="grid-area" id="gridArea">
+      <div class="grid-inner" id="gridInner">
+        <div class="grid-header" id="gridHeader">
+          <div class="grid-corner"></div>
+        </div>
+        <div class="grid-body" id="gridBody">
+          <div class="time-col" id="timeCol"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: videos -->
+    <div class="sidebar-right">
+      <div class="sb-head"><span>Biblioteka wideo</span></div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="video/*" multiple>
+        <div class="uz-icon">📼</div>
+        <div class="uz-text">Przeciągnij lub <strong>kliknij</strong><br>aby dodać wideo</div>
+      </div>
+      <div class="up-progress" id="upProgress">
+        <div class="up-bar"><div class="up-fill" id="upFill"></div></div>
+        <div class="up-label" id="upLabel">Wgrywanie…</div>
+      </div>
+      <div class="vid-list" id="vidList"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Entry modal -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div class="modal-title" id="entryTitle">NOWA POZYCJA</div>
+    <div class="form-group">
+      <label class="form-label">Kanał</label>
+      <select class="form-select" id="fCh"></select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Tytuł programu</label>
+      <input class="form-input" type="text" id="fTitle" placeholder="np. Wiadomości, Film, Mecz…">
+    </div>
+    <div class="form-group time-row">
+      <div>
+        <label class="form-label">Od</label>
+        <input class="form-input" type="time" id="fStart" value="12:00">
+      </div>
+      <div>
+        <label class="form-label">Do</label>
+        <input class="form-input" type="time" id="fEnd" value="13:00">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Plik wideo (opcjonalnie)</label>
+      <select class="form-select" id="fVideo">
+        <option value="">— bez pliku —</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Dni tygodnia</label>
+      <div class="days-grid" id="daysGrid">
+        <div class="day-chip on" data-d="1">Pn</div>
+        <div class="day-chip on" data-d="2">Wt</div>
+        <div class="day-chip on" data-d="3">Śr</div>
+        <div class="day-chip on" data-d="4">Cz</div>
+        <div class="day-chip on" data-d="5">Pt</div>
+        <div class="day-chip on" data-d="6">Sb</div>
+        <div class="day-chip on" data-d="0">Nd</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="entryDel" style="display:none">Usuń</button>
+      <div class="spacer"></div>
+      <button class="btn" id="entryCancel">Anuluj</button>
+      <button class="btn btn-accent" id="entrySave">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Channel modal -->
+<div class="modal-overlay" id="chModal">
+  <div class="modal">
+    <div class="modal-title" id="chModalTitle">NOWY KANAŁ</div>
+    <div class="form-group">
+      <label class="form-label">Nazwa kanału</label>
+      <input class="form-input" type="text" id="fChName" placeholder="np. TVP 1, Własny…">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kolor</label>
+      <input class="form-input" type="color" id="fChColor" value="#00e87a" style="height:38px;padding:3px 6px;cursor:pointer;">
+      <div class="color-grid" id="colorGrid"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="chDel" style="display:none">Usuń kanał</button>
+      <div class="spacer"></div>
+      <button class="btn" id="chCancel">Anuluj</button>
+      <button class="btn btn-accent" id="chSave">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let schedule    = { channels: [], entries: [] };
+let videos      = [];
+let currentDay  = new Date().getDay(); // 0=Nd, 1=Pn …
+let editEntry   = null;
+let editChannel = null;
+
+const DAYS       = ['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const HOUR_H     = 64; // px per hour (must match --hour-h)
+const CH_PRESETS = ['#e63030','#2060e8','#e8a020','#e83060','#22aa44','#8822cc',
+                    '#00aacc','#ee6600','#cc8800','#cc4488','#aabb00','#ff6688'];
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const r = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body:    body ? JSON.stringify(body) : undefined,
+  });
+  return r.json();
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  [schedule, videos] = await Promise.all([
+    api('GET', '/api/schedule'),
+    api('GET', '/api/videos'),
+  ]);
+  render();
+  scrollToNow();
+  setInterval(updateNowLine, 60000);
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render() {
+  renderDayLabel();
+  renderChannels();
+  renderGrid();
+  renderVideos();
+}
+
+function renderDayLabel() {
+  const base = new Date();
+  const diff = currentDay - base.getDay();
+  const d = new Date(base); d.setDate(base.getDate() + diff);
+  const dd = d.getDate().toString().padStart(2,'0');
+  const mm = (d.getMonth()+1).toString().padStart(2,'0');
+  document.getElementById('dayLabel').textContent = `${DAYS[currentDay]}, ${dd}.${mm}`;
+}
+
+function renderChannels() {
+  const list = document.getElementById('chList');
+  list.innerHTML = '';
+  schedule.channels.forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'ch-item';
+    el.innerHTML = `
+      <div class="ch-dot" style="background:${ch.color}"></div>
+      <div class="ch-num">${i+1}</div>
+      <div class="ch-name">${ch.name}</div>
+      <button class="ch-edit" title="Edytuj kanał">✎</button>
+    `;
+    el.querySelector('.ch-edit').addEventListener('click', e => {
+      e.stopPropagation(); openChModal(ch);
+    });
+    list.appendChild(el);
+  });
+}
+
+function renderGrid() {
+  const header  = document.getElementById('gridHeader');
+  const body    = document.getElementById('gridBody');
+  const timeCol = document.getElementById('timeCol');
+
+  // Reset
+  const corner = header.querySelector('.grid-corner');
+  header.innerHTML = ''; header.appendChild(corner);
+  // Remove old ch-cols (keep timeCol)
+  [...body.querySelectorAll('.ch-col,.now-line')].forEach(el => el.remove());
+
+  // Time labels
+  timeCol.innerHTML = '';
+  for (let h = 0; h < 24; h++) {
+    const m = document.createElement('div');
+    m.className = 'hour-mark';
+    m.style.top = `${h * HOUR_H}px`;
+    m.textContent = `${h.toString().padStart(2,'0')}:00`;
+    timeCol.appendChild(m);
+  }
+
+  if (schedule.channels.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'grid-empty';
+    empty.innerHTML = '<div class="ge-icon">📺</div><div>Brak kanałów — dodaj pierwszy kanał</div>';
+    body.appendChild(empty);
+    return;
+  }
+
+  const dayEntries = schedule.entries.filter(e => e.days && e.days.includes(currentDay));
+
+  schedule.channels.forEach(ch => {
+    // Header
+    const head = document.createElement('div');
+    head.className = 'ch-head';
+    head.innerHTML = `<div class="ch-head-dot" style="background:${ch.color}"></div><span class="ch-head-name">${ch.name}</span>`;
+    header.appendChild(head);
+
+    // Column
+    const col = document.createElement('div');
+    col.className = 'ch-col';
+    col.dataset.chId = ch.id;
+
+    // Entries
+    dayEntries.filter(e => e.channelId === ch.id).forEach(entry => {
+      col.appendChild(makeEntryEl(entry, ch));
+    });
+
+    // Click on empty space → add entry
+    col.addEventListener('click', e => {
+      if (e.target !== col) return;
+      const mins = snapTo30(e.offsetY / (HOUR_H / 60));
+      openEntryModal(null, ch.id, toHHMM(mins), toHHMM(Math.min(mins + 60, 23*60+59)));
+    });
+
+    body.appendChild(col);
+  });
+
+  // Now-line (today only)
+  if (new Date().getDay() === currentDay) {
+    const line = document.createElement('div');
+    line.className = 'now-line'; line.id = 'nowLine';
+    updateNowLineEl(line);
+    body.appendChild(line);
+  }
+}
+
+function makeEntryEl(entry, ch) {
+  const startM  = toMins(entry.startTime);
+  const endM    = toMins(entry.endTime);
+  const top     = startM   * (HOUR_H / 60);
+  const height  = Math.max((endM - startM) * (HOUR_H / 60), 18);
+  const el      = document.createElement('div');
+  el.className  = 'sched-entry';
+  el.style.cssText = `top:${top}px; height:${height}px; background:${ch.color}26; border-left-color:${ch.color};`;
+  el.innerHTML = `
+    <div class="entry-time">${entry.startTime}–${entry.endTime}</div>
+    ${height > 34 ? `<div class="entry-title">${entry.title || '—'}</div>` : ''}
+    ${height > 52 && entry.videoFile ? `<div class="entry-file">📼 ${entry.videoFile.replace('video/','')}</div>` : ''}
+  `;
+  el.addEventListener('click', e => { e.stopPropagation(); openEntryModal(entry); });
+  return el;
+}
+
+function updateNowLineEl(line) {
+  const now  = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  line.style.top = `${mins * (HOUR_H / 60)}px`;
+}
+
+function updateNowLine() {
+  const line = document.getElementById('nowLine');
+  if (line) updateNowLineEl(line);
+}
+
+function renderVideos() {
+  const list = document.getElementById('vidList');
+  list.innerHTML = '';
+  if (!videos.length) {
+    list.innerHTML = '<div class="vid-empty">Brak wgranych filmów</div>';
+    return;
+  }
+  videos.forEach(name => {
+    const el = document.createElement('div');
+    el.className = 'vid-item';
+    el.innerHTML = `<span class="vid-icon">🎬</span><span class="vid-name" title="${name}">${name}</span>`;
+    el.addEventListener('click', () => {
+      document.querySelectorAll('.vid-item').forEach(v => v.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+    list.appendChild(el);
+  });
+  refreshVideoSelect();
+}
+
+function refreshVideoSelect() {
+  const sel = document.getElementById('fVideo');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— bez pliku —</option>';
+  videos.forEach(name => {
+    const o = document.createElement('option');
+    o.value = `video/${name}`; o.textContent = name;
+    sel.appendChild(o);
+  });
+  sel.value = cur;
+}
+
+// ─── Day nav ──────────────────────────────────────────────────────────────────
+document.getElementById('prevDay').addEventListener('click', () => {
+  currentDay = (currentDay + 6) % 7; render();
+});
+document.getElementById('nextDay').addEventListener('click', () => {
+  currentDay = (currentDay + 1) % 7; render();
+});
+
+// ─── Entry modal ──────────────────────────────────────────────────────────────
+function openEntryModal(entry, chId, startTime, endTime) {
+  editEntry = entry || null;
+  document.getElementById('entryTitle').textContent = entry ? 'EDYTUJ POZYCJĘ' : 'NOWA POZYCJA';
+  document.getElementById('entryDel').style.display = entry ? 'inline-block' : 'none';
+
+  // Populate channel select
+  const chSel = document.getElementById('fCh');
+  chSel.innerHTML = '';
+  schedule.channels.forEach(ch => {
+    const o = document.createElement('option');
+    o.value = ch.id; o.textContent = ch.name; chSel.appendChild(o);
+  });
+
+  if (entry) {
+    chSel.value = entry.channelId;
+    document.getElementById('fTitle').value = entry.title || '';
+    document.getElementById('fStart').value = entry.startTime;
+    document.getElementById('fEnd').value   = entry.endTime;
+    refreshVideoSelect();
+    document.getElementById('fVideo').value = entry.videoFile || '';
+    document.querySelectorAll('#daysGrid .day-chip').forEach(c =>
+      c.classList.toggle('on', (entry.days || []).includes(+c.dataset.d))
+    );
+  } else {
+    chSel.value = chId || schedule.channels[0]?.id;
+    document.getElementById('fTitle').value = '';
+    document.getElementById('fStart').value = startTime || '12:00';
+    document.getElementById('fEnd').value   = endTime   || '13:00';
+    refreshVideoSelect();
+    document.getElementById('fVideo').value = '';
+    document.querySelectorAll('#daysGrid .day-chip').forEach(c => c.classList.add('on'));
+  }
+
+  document.getElementById('entryModal').classList.add('open');
+  document.getElementById('fTitle').focus();
+}
+
+function closeEntryModal() {
+  document.getElementById('entryModal').classList.remove('open');
+  editEntry = null;
+}
+
+document.querySelectorAll('#daysGrid .day-chip').forEach(c =>
+  c.addEventListener('click', () => c.classList.toggle('on'))
+);
+document.getElementById('entryCancel').addEventListener('click', closeEntryModal);
+document.getElementById('entryModal').addEventListener('click', e => {
+  if (e.target.id === 'entryModal') closeEntryModal();
+});
+
+document.getElementById('entrySave').addEventListener('click', async () => {
+  const days = [...document.querySelectorAll('#daysGrid .day-chip.on')].map(c => +c.dataset.d);
+  const data = {
+    channelId: +document.getElementById('fCh').value,
+    title:     document.getElementById('fTitle').value.trim(),
+    startTime: document.getElementById('fStart').value,
+    endTime:   document.getElementById('fEnd').value,
+    videoFile: document.getElementById('fVideo').value,
+    days,
+  };
+  if (!data.startTime || !data.endTime) { showToast('Podaj godziny'); return; }
+  if (toMins(data.startTime) >= toMins(data.endTime)) { showToast('Godzina końca musi być po starcie'); return; }
+  if (!data.title && !data.videoFile) { showToast('Podaj tytuł lub wybierz plik'); return; }
+
+  if (editEntry) {
+    await api('PUT', `/api/entries/${editEntry.id}`, data);
+    showToast('Zaktualizowano pozycję');
+  } else {
+    await api('POST', '/api/entries', data);
+    showToast('Dodano pozycję do ramówki');
+  }
+  closeEntryModal();
+  await refresh();
+  renderGrid();
+});
+
+document.getElementById('entryDel').addEventListener('click', async () => {
+  if (!confirm('Usunąć tę pozycję z ramówki?')) return;
+  await api('DELETE', `/api/entries/${editEntry.id}`);
+  showToast('Usunięto pozycję');
+  closeEntryModal();
+  await refresh();
+  renderGrid();
+});
+
+// ─── Channel modal ────────────────────────────────────────────────────────────
+function buildColorGrid() {
+  const grid = document.getElementById('colorGrid');
+  CH_PRESETS.forEach(color => {
+    const s = document.createElement('div');
+    s.className = 'color-swatch'; s.style.background = color;
+    s.addEventListener('click', () => {
+      document.getElementById('fChColor').value = color;
+      grid.querySelectorAll('.color-swatch').forEach(x => x.classList.remove('on'));
+      s.classList.add('on');
+    });
+    grid.appendChild(s);
+  });
+}
+buildColorGrid();
+
+function openChModal(ch) {
+  editChannel = ch || null;
+  document.getElementById('chModalTitle').textContent = ch ? 'EDYTUJ KANAŁ' : 'NOWY KANAŁ';
+  document.getElementById('chDel').style.display = ch ? 'inline-block' : 'none';
+  document.getElementById('fChName').value  = ch?.name  || '';
+  document.getElementById('fChColor').value = ch?.color || '#00e87a';
+  document.getElementById('chModal').classList.add('open');
+  document.getElementById('fChName').focus();
+}
+
+function closeChModal() {
+  document.getElementById('chModal').classList.remove('open');
+  editChannel = null;
+}
+
+document.getElementById('addChannelBtn').addEventListener('click', () => openChModal(null));
+document.getElementById('addChSmall').addEventListener('click',   () => openChModal(null));
+document.getElementById('chCancel').addEventListener('click', closeChModal);
+document.getElementById('chModal').addEventListener('click', e => {
+  if (e.target.id === 'chModal') closeChModal();
+});
+
+document.getElementById('chSave').addEventListener('click', async () => {
+  const name  = document.getElementById('fChName').value.trim();
+  const color = document.getElementById('fChColor').value;
+  if (!name) { showToast('Podaj nazwę kanału'); return; }
+  if (editChannel) {
+    await api('PUT', `/api/channels/${editChannel.id}`, { name, color });
+    showToast(`Zaktualizowano: ${name}`);
+  } else {
+    await api('POST', '/api/channels', { name, color });
+    showToast(`Dodano kanał: ${name}`);
+  }
+  closeChModal();
+  await refresh();
+  renderChannels();
+  renderGrid();
+});
+
+document.getElementById('chDel').addEventListener('click', async () => {
+  if (!confirm(`Usunąć kanał "${editChannel.name}" i wszystkie jego pozycje?`)) return;
+  await api('DELETE', `/api/channels/${editChannel.id}`);
+  showToast('Kanał usunięty');
+  closeChModal();
+  await refresh();
+  renderChannels();
+  renderGrid();
+});
+
+// ─── Upload ───────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover',  e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', ()  => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  uploadFiles([...e.dataTransfer.files].filter(f => f.type.startsWith('video/')));
+});
+fileInput.addEventListener('change', () => { uploadFiles([...fileInput.files]); fileInput.value = ''; });
+
+async function uploadFiles(files) {
+  for (const f of files) await uploadOne(f);
+  videos = await api('GET', '/api/videos');
+  renderVideos();
+}
+
+function uploadOne(file) {
+  return new Promise((resolve, reject) => {
+    const prog  = document.getElementById('upProgress');
+    const fill  = document.getElementById('upFill');
+    const label = document.getElementById('upLabel');
+    prog.style.display = 'block';
+    fill.style.width   = '0%';
+    label.textContent  = `Wgrywanie: ${file.name}`;
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload');
+    xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) fill.style.width = `${(e.loaded / e.total * 100).toFixed(0)}%`;
+    };
+    xhr.onload = () => {
+      fill.style.width  = '100%';
+      label.textContent = `Gotowe: ${file.name}`;
+      showToast(`Wgrano: ${file.name}`);
+      setTimeout(() => { prog.style.display = 'none'; }, 1800);
+      resolve();
+    };
+    xhr.onerror = () => {
+      prog.style.display = 'none';
+      showToast(`Błąd przy wgrywaniu: ${file.name}`);
+      reject();
+    };
+    xhr.send(file);
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function toMins(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function toHHMM(m) {
+  m = Math.max(0, Math.min(1439, Math.round(m)));
+  return `${Math.floor(m/60).toString().padStart(2,'0')}:${(m%60).toString().padStart(2,'0')}`;
+}
+function snapTo30(mins) { return Math.round(mins / 30) * 30; }
+
+async function refresh() {
+  [schedule, videos] = await Promise.all([
+    api('GET', '/api/schedule'),
+    api('GET', '/api/videos'),
+  ]);
+}
+
+function scrollToNow() {
+  const now  = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const px   = mins * (HOUR_H / 60);
+  document.getElementById('gridArea').scrollTop = Math.max(0, px - 160);
+}
+
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
