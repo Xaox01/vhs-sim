@@ -447,7 +447,7 @@ function updateCh() {
   const schedCh = scheduleData.channels.find(c => c.id === channel);
   if (schedCh) {
     const entry = getCurrentEntry(channel);
-    showChBanner(channel, { name: schedCh.name, program: entry?.title || '·' });
+    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color });
     if (!tapeInserted) insertTape();
     slotName.textContent = schedCh.name;
 
@@ -974,28 +974,106 @@ function fmt(s) {
 }
 
 // ── Baner zmiany kanału ───────────────────────────────────────────────────────
-const chBanner = (() => {
+const chBannerCSS = `
+  .ch-osd {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 9999; pointer-events: none;
+    font-family: 'VT323', monospace;
+    transform: translateY(100%);
+    transition: transform .18s cubic-bezier(.22,.68,0,1.2);
+  }
+  .ch-osd.visible { transform: translateY(0); }
+  .ch-osd-inner {
+    margin: 0 auto;
+    background: rgba(6,4,2,.93);
+    border-top: 2px solid #c8870a;
+    padding: 10px 22px 12px;
+    display: flex; align-items: center; gap: 18px;
+    position: relative; overflow: hidden;
+  }
+  /* Linie skanujące na banerze */
+  .ch-osd-inner::after {
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(
+      to bottom, transparent 0, transparent 2px, rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 4px
+    );
+  }
+  .ch-osd-num {
+    background: #c8870a;
+    color: #000;
+    font-size: 2rem; line-height: 1;
+    padding: 4px 12px 2px;
+    letter-spacing: .05em;
+    flex-shrink: 0;
+    clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
+    padding-right: 20px;
+  }
+  .ch-osd-info { flex: 1; min-width: 0; }
+  .ch-osd-name {
+    font-size: 2rem; color: #f5d080; line-height: 1;
+    letter-spacing: .12em; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  .ch-osd-program {
+    font-size: 1.15rem; color: #a09070; letter-spacing: .08em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    margin-top: 1px;
+  }
+  .ch-osd-right { text-align: right; flex-shrink: 0; }
+  .ch-osd-time { font-size: 2rem; color: #f5d080; letter-spacing: .1em; line-height: 1; }
+  .ch-osd-date { font-size: .95rem; color: #806040; letter-spacing: .06em; margin-top: 1px; }
+  .ch-osd-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    flex-shrink: 0; margin-bottom: 2px; align-self: flex-start; margin-top: 8px;
+  }
+`;
+(function injectBannerCSS() {
+  const s = document.createElement('style');
+  s.textContent = chBannerCSS;
+  document.head.appendChild(s);
+})();
+
+const chBannerEl = (() => {
   const el = document.createElement('div');
-  el.style.cssText = `
-    position:fixed;bottom:90px;left:24px;
-    background:rgba(0,0,0,.88);border-left:3px solid #0ff;
-    color:#fff;font-family:'VT323',monospace;
-    padding:8px 18px 6px;z-index:9999;pointer-events:none;
-    opacity:0;transition:opacity .25s;line-height:1.3;
-  `;
+  el.className = 'ch-osd';
   document.body.appendChild(el);
   return el;
 })();
+
 let chBannerTimer;
+const DAY_PL = ['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
+
 function showChBanner(ch, data) {
-  const name    = data ? data.name    : `CH ${ch}`;
-  const program = data ? data.program : 'Brak sygnału';
-  chBanner.innerHTML =
-    `<div style="font-size:1.1rem;letter-spacing:.1em">CH ${ch} &nbsp;—&nbsp; ${name}</div>` +
-    `<div style="font-size:.78rem;color:#0ff;letter-spacing:.08em">${program}</div>`;
-  chBanner.style.opacity = '1';
+  const name    = data?.name    || `CH ${ch}`;
+  const program = data?.program || 'Brak sygnału';
+  const color   = data?.color   || '#c8870a';
+
+  const now    = new Date();
+  const HH     = now.getHours().toString().padStart(2,'0');
+  const MM     = now.getMinutes().toString().padStart(2,'0');
+  const dd     = now.getDate().toString().padStart(2,'0');
+  const mm     = (now.getMonth()+1).toString().padStart(2,'0');
+  const dayStr = DAY_PL[now.getDay()];
+
+  chBannerEl.innerHTML = `
+    <div class="ch-osd-inner">
+      <div class="ch-osd-num">CH&nbsp;${ch}</div>
+      <div class="ch-osd-dot" style="background:${color}"></div>
+      <div class="ch-osd-info">
+        <div class="ch-osd-name">${name}</div>
+        <div class="ch-osd-program">${program}</div>
+      </div>
+      <div class="ch-osd-right">
+        <div class="ch-osd-time">${HH}:${MM}</div>
+        <div class="ch-osd-date">${dayStr} ${dd}.${mm}</div>
+      </div>
+    </div>
+  `;
+
+  chBannerEl.classList.add('visible');
   clearTimeout(chBannerTimer);
-  chBannerTimer = setTimeout(() => { chBanner.style.opacity = '0'; }, 3200);
+  chBannerTimer = setTimeout(() => chBannerEl.classList.remove('visible'), 4000);
 }
 
 // ── Kanały proceduralne ───────────────────────────────────────────────────────
