@@ -425,7 +425,8 @@ async function loadSchedule() {
 const channelFrame = document.getElementById('channelFrame');
 let channelActive = false;
 let channelDraw   = null;   // nazwa funkcji rysującej kanał proceduralny
-let chSwitching   = 0;      // licznik klatek szumu przy zmianie kanału
+let chSwitching   = 0;      // licznik klatek śniegu przy zmianie kanału
+let chSwitchMax   = 38;
 
 document.getElementById('chUp').addEventListener('click', () => { channel = channel >= schedChannelCount() ? 1 : channel + 1; updateCh(); });
 document.getElementById('chDn').addEventListener('click', () => { channel = channel <= 1 ? schedChannelCount() : channel - 1; updateCh(); });
@@ -441,13 +442,14 @@ function updateCh() {
   hasVideo      = false;
   channelDraw   = null;
   channelActive = false;
-  chSwitching   = 22;  // ~360ms szumu na zmianie kanału
+  chSwitching   = 38;  // ~630ms śniegu przy zmianie kanału
+  chSwitchMax   = 38;
 
   // Sprawdź ramówkę
   const schedCh = scheduleData.channels.find(c => c.id === channel);
   if (schedCh) {
     const entry = getCurrentEntry(channel);
-    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color });
+    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color }, entry);
     if (!tapeInserted) insertTape();
     slotName.textContent = schedCh.name;
 
@@ -569,8 +571,9 @@ function renderFrame(dt) {
   if (!tapeInserted || state===ST.STOP) {
     drawNoise(W,H);
   } else if (chSwitching > 0) {
+    const phase = 1 - chSwitching / chSwitchMax;
     chSwitching--;
-    drawNoise(W,H);
+    drawChSnow(W, H, phase);
   } else if (state===ST.PAUSE) {
     drawPause(W,H);
   } else if (state===ST.REW || state===ST.FF) {
@@ -765,6 +768,62 @@ function applyVHS(W,H) {
 }
 
 function clamp(v) { return v<0?0:v>255?255:v|0; }
+
+// ── Śnieg przy zmianie kanału ─────────────────────────────────────────────────
+function drawChSnow(W, H, t) {
+  // t: 0 = właśnie przełączono, 1 = koniec efektu
+
+  // Faza 1 (0–0.1): biały błysk
+  if (t < 0.1) {
+    const alpha = 1 - t / 0.1;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(220,220,220,${(alpha * 0.4).toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
+    return;
+  }
+
+  // Faza 2 (0.1–1): śnieg malejący + utrata synchronizacji poziomej
+  const noise  = Math.pow(1 - Math.min(1, (t - 0.1) / 0.75), 1.4); // 1→0
+  const bright = 20 + noise * 235;
+
+  const img = ctx.createImageData(W, H);
+  const d   = img.data;
+
+  for (let y = 0; y < H; y++) {
+    // Przesunięcie linii — typowa utrata sync poziomej
+    const syncLoss = noise > 0.25
+      ? Math.sin(y * 0.25 + t * 18) * noise * 38 + (Math.random() - 0.5) * noise * 24
+      : 0;
+    const shi = Math.round(syncLoss);
+
+    for (let x = 0; x < W; x++) {
+      const sx = ((x + shi) % W + W) % W;
+      const i  = (y * W + sx) * 4;
+      const v  = Math.random() * bright | 0;
+      // Lekko kolorowy szum (chrominancja)
+      d[i]   = clamp(v + (Math.random() * noise * 60 | 0));
+      d[i+1] = clamp(v);
+      d[i+2] = clamp(v + (Math.random() * noise * 80 | 0));
+      d[i+3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  // Jasne poziome paski (head-switch artefakt)
+  const strips = Math.round(noise * 6);
+  for (let s = 0; s < strips; s++) {
+    const by = Math.random() * H;
+    ctx.fillStyle = `rgba(255,255,255,${(noise * 0.55 * Math.random()).toFixed(3)})`;
+    ctx.fillRect(0, by, W, 1 + Math.random() * 5);
+  }
+
+  // Ciemnienie na końcu (sygnał stabilizuje się)
+  if (t > 0.7) {
+    ctx.fillStyle = `rgba(0,0,0,${((t - 0.7) / 0.3 * 0.6).toFixed(3)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
 
 function drawNoise(W,H) {
   // Autentyczny szum VHS — kolorowy (chrominancja) z poziomymi pasmami
@@ -981,51 +1040,82 @@ const chBannerCSS = `
     z-index: 9999; pointer-events: none;
     font-family: 'VT323', monospace;
     transform: translateY(100%);
-    transition: transform .18s cubic-bezier(.22,.68,0,1.2);
+    transition: transform .2s cubic-bezier(.22,.68,0,1.15);
   }
   .ch-osd.visible { transform: translateY(0); }
+
+  .ch-osd-accent {
+    height: 3px;
+    background: var(--osd-color, #c8870a);
+    transition: background .3s;
+  }
+
   .ch-osd-inner {
-    margin: 0 auto;
-    background: rgba(6,4,2,.93);
-    border-top: 2px solid #c8870a;
-    padding: 10px 22px 12px;
-    display: flex; align-items: center; gap: 18px;
+    background: rgba(5,4,3,.95);
+    padding: 10px 20px 8px;
+    display: flex; align-items: center; gap: 16px;
     position: relative; overflow: hidden;
   }
-  /* Linie skanujące na banerze */
+  /* Linie skanujące */
   .ch-osd-inner::after {
     content:''; position:absolute; inset:0; pointer-events:none;
     background: repeating-linear-gradient(
-      to bottom, transparent 0, transparent 2px, rgba(0,0,0,.18) 2px, rgba(0,0,0,.18) 4px
+      to bottom, transparent 0, transparent 3px, rgba(0,0,0,.14) 3px, rgba(0,0,0,.14) 4px
     );
   }
+
+  /* Numer kanału */
   .ch-osd-num {
-    background: #c8870a;
-    color: #000;
-    font-size: 2rem; line-height: 1;
-    padding: 4px 12px 2px;
-    letter-spacing: .05em;
     flex-shrink: 0;
-    clip-path: polygon(0 0, 100% 0, 92% 100%, 0 100%);
-    padding-right: 20px;
+    background: var(--osd-color, #c8870a);
+    color: #000;
+    font-size: 2.4rem; line-height: 1;
+    padding: 3px 14px 1px 10px;
+    letter-spacing: .04em;
+    clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
+    min-width: 82px; text-align: center;
   }
+
+  /* Blok info */
   .ch-osd-info { flex: 1; min-width: 0; }
   .ch-osd-name {
-    font-size: 2rem; color: #f5d080; line-height: 1;
-    letter-spacing: .12em; white-space: nowrap;
+    font-size: 2.1rem; color: #f0d888; line-height: 1;
+    letter-spacing: .1em; white-space: nowrap;
     overflow: hidden; text-overflow: ellipsis;
   }
   .ch-osd-program {
-    font-size: 1.15rem; color: #a09070; letter-spacing: .08em;
+    font-size: 1.15rem; color: #9a8860; letter-spacing: .07em;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    margin-top: 1px;
+    margin-top: 2px;
   }
+
+  /* Pasek postępu programu */
+  .ch-osd-prog-bar {
+    margin-top: 6px; position: relative;
+  }
+  .ch-osd-prog-track {
+    height: 4px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden;
+  }
+  .ch-osd-prog-fill {
+    height: 100%;
+    background: var(--osd-color, #c8870a);
+    border-radius: 2px;
+    transition: width .4s;
+  }
+  .ch-osd-prog-times {
+    display: flex; justify-content: space-between;
+    font-size: .9rem; color: #6a5a40; margin-top: 2px; letter-spacing: .05em;
+  }
+  .ch-osd-prog-remain { color: var(--osd-color, #c8870a); }
+
+  /* Czas i data */
   .ch-osd-right { text-align: right; flex-shrink: 0; }
-  .ch-osd-time { font-size: 2rem; color: #f5d080; letter-spacing: .1em; line-height: 1; }
-  .ch-osd-date { font-size: .95rem; color: #806040; letter-spacing: .06em; margin-top: 1px; }
-  .ch-osd-dot {
-    width: 10px; height: 10px; border-radius: 50%;
-    flex-shrink: 0; margin-bottom: 2px; align-self: flex-start; margin-top: 8px;
+  .ch-osd-time { font-size: 2.4rem; color: #f0d888; letter-spacing: .08em; line-height: 1; }
+  .ch-osd-date { font-size: .95rem; color: #6a5a40; letter-spacing: .06em; margin-top: 2px; }
+
+  /* Separator pionowy */
+  .ch-osd-sep {
+    width: 1px; height: 52px; background: rgba(255,255,255,.08); flex-shrink: 0;
   }
 `;
 (function injectBannerCSS() {
@@ -1044,7 +1134,7 @@ const chBannerEl = (() => {
 let chBannerTimer;
 const DAY_PL = ['Nd','Pn','Wt','Śr','Cz','Pt','Sb'];
 
-function showChBanner(ch, data) {
+function showChBanner(ch, data, entry) {
   const name    = data?.name    || `CH ${ch}`;
   const program = data?.program || 'Brak sygnału';
   const color   = data?.color   || '#c8870a';
@@ -1056,24 +1146,49 @@ function showChBanner(ch, data) {
   const mm     = (now.getMonth()+1).toString().padStart(2,'0');
   const dayStr = DAY_PL[now.getDay()];
 
+  // Pasek postępu programu
+  let progHTML = '';
+  if (entry?.startTime && entry?.endTime) {
+    const nowMins  = now.getHours() * 60 + now.getMinutes();
+    const startM   = schedMins(entry.startTime);
+    const endM     = schedMins(entry.endTime);
+    const pct      = Math.max(0, Math.min(100, ((nowMins - startM) / (endM - startM)) * 100));
+    const remMins  = Math.max(0, endM - nowMins);
+    const remStr   = remMins > 0 ? `${remMins} MIN` : 'KONIEC';
+    progHTML = `
+      <div class="ch-osd-prog-bar">
+        <div class="ch-osd-prog-track">
+          <div class="ch-osd-prog-fill" style="width:${pct.toFixed(1)}%"></div>
+        </div>
+        <div class="ch-osd-prog-times">
+          <span>${entry.startTime}</span>
+          <span class="ch-osd-prog-remain">${remStr}</span>
+          <span>${entry.endTime}</span>
+        </div>
+      </div>`;
+  }
+
+  chBannerEl.style.setProperty('--osd-color', color);
   chBannerEl.innerHTML = `
+    <div class="ch-osd-accent"></div>
     <div class="ch-osd-inner">
       <div class="ch-osd-num">CH&nbsp;${ch}</div>
-      <div class="ch-osd-dot" style="background:${color}"></div>
       <div class="ch-osd-info">
         <div class="ch-osd-name">${name}</div>
         <div class="ch-osd-program">${program}</div>
+        ${progHTML}
       </div>
+      <div class="ch-osd-sep"></div>
       <div class="ch-osd-right">
         <div class="ch-osd-time">${HH}:${MM}</div>
-        <div class="ch-osd-date">${dayStr} ${dd}.${mm}</div>
+        <div class="ch-osd-date">${dayStr}&nbsp;${dd}.${mm}</div>
       </div>
     </div>
   `;
 
   chBannerEl.classList.add('visible');
   clearTimeout(chBannerTimer);
-  chBannerTimer = setTimeout(() => chBannerEl.classList.remove('visible'), 4000);
+  chBannerTimer = setTimeout(() => chBannerEl.classList.remove('visible'), 5000);
 }
 
 // ── Kanały proceduralne ───────────────────────────────────────────────────────
