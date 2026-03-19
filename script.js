@@ -449,7 +449,7 @@ function updateCh() {
   const schedCh = scheduleData.channels.find(c => c.id === channel);
   if (schedCh) {
     const entry = getCurrentEntry(channel);
-    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color }, entry);
+    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color, logo: schedCh.logo || '' }, entry);
     if (!tapeInserted) insertTape();
     slotName.textContent = schedCh.name;
 
@@ -1035,9 +1035,9 @@ function fmt(s) {
 // ── Baner zmiany kanału ───────────────────────────────────────────────────────
 const chBannerCSS = `
   .ch-osd {
-    position: fixed;
+    position: absolute;
     bottom: 0; left: 0; right: 0;
-    z-index: 9999; pointer-events: none;
+    z-index: 50; pointer-events: none;
     font-family: 'VT323', monospace;
     transform: translateY(100%);
     transition: transform .2s cubic-bezier(.22,.68,0,1.15);
@@ -1074,6 +1074,12 @@ const chBannerCSS = `
     letter-spacing: .04em;
     clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
     min-width: 82px; text-align: center;
+  }
+  /* Logo kanału */
+  .ch-osd-logo {
+    flex-shrink: 0;
+    font-size: 2rem; line-height: 1;
+    filter: drop-shadow(0 0 4px rgba(255,255,255,.3));
   }
 
   /* Blok info */
@@ -1127,7 +1133,8 @@ const chBannerCSS = `
 const chBannerEl = (() => {
   const el = document.createElement('div');
   el.className = 'ch-osd';
-  document.body.appendChild(el);
+  // Wewnątrz ekranu TV — nie koliduje z przyciskami VCR
+  document.getElementById('screen').appendChild(el);
   return el;
 })();
 
@@ -1138,6 +1145,7 @@ function showChBanner(ch, data, entry) {
   const name    = data?.name    || `CH ${ch}`;
   const program = data?.program || 'Brak sygnału';
   const color   = data?.color   || '#c8870a';
+  const logo    = data?.logo    || '';
 
   const now    = new Date();
   const HH     = now.getHours().toString().padStart(2,'0');
@@ -1173,6 +1181,7 @@ function showChBanner(ch, data, entry) {
     <div class="ch-osd-accent"></div>
     <div class="ch-osd-inner">
       <div class="ch-osd-num">CH&nbsp;${ch}</div>
+      ${logo ? `<div class="ch-osd-logo">${logo}</div>` : ''}
       <div class="ch-osd-info">
         <div class="ch-osd-name">${name}</div>
         <div class="ch-osd-program">${program}</div>
