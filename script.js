@@ -340,7 +340,8 @@ function insertTape() {
         tvOffScreen.style.opacity = '0';
         setTimeout(() => {
           tvOffScreen.style.display = 'none';
-          setState(ST.STOP);
+          // Nie resetuj jeśli kanał już zaczął odtwarzanie (schedule auto-play)
+          if (state !== ST.PLAY && state !== ST.REC) setState(ST.STOP);
         }, 400);
       }, 600);
     }, 80);
@@ -406,7 +407,8 @@ function getCurrentEntry(channelId) {
   const dow  = now.getDay();
   return scheduleData.entries.find(e =>
     e.channelId === channelId &&
-    Array.isArray(e.days) && e.days.includes(dow) &&
+    // pusta tablica dni = nadawaj codziennie
+    (!Array.isArray(e.days) || e.days.length === 0 || e.days.includes(dow)) &&
     schedMins(e.startTime) <= mins &&
     schedMins(e.endTime)   >  mins
   ) || null;
@@ -470,6 +472,13 @@ function updateCh() {
           }
           setState(ST.PLAY);
         }, { once: true });
+      }, 380);
+    } else {
+      // Kanał istnieje ale brak programu o tej godzinie → plansza testowa
+      setTimeout(() => {
+        channelDraw   = 'colorBars';
+        channelActive = true;
+        if (state !== ST.PLAY) setState(ST.PLAY);
       }, 380);
     }
     return;
