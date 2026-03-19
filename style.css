@@ -621,23 +621,46 @@ body::after {
 .action-btn:hover { border-color: #5a4828; color: #c0a040; background: linear-gradient(180deg,#28221a,#1a1610); }
 .action-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #060400; }
 
-.ch-group { display: flex; align-items: center; gap: clamp(3px,.4vw,5px); }
-.ch-btn {
-  background: linear-gradient(180deg, #1a1608, #100e04);
-  border: 1px solid #222010; border-radius: 3px;
-  color: #3a3010;
-  font-size: clamp(8px,.9vw,12px);
-  width: clamp(20px,2.5vw,30px); height: clamp(20px,2.5vw,28px);
-  cursor: pointer; transition: color .15s;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 1px 0 #060400;
+.ch-group {
+  display: flex; flex-direction: column; align-items: center;
+  gap: clamp(3px,.4vw,5px);
+  background: linear-gradient(180deg, #111008, #0c0a04);
+  border: 1px solid #2e2610;
+  border-bottom: 2px solid #060400;
+  border-radius: 5px;
+  padding: clamp(4px,.5vw,7px) clamp(6px,.8vw,10px);
+  box-shadow: 0 2px 0 #030200, inset 0 1px 0 rgba(255,200,40,.04);
 }
-.ch-btn:hover { color: #c0a040; }
+.ch-btn {
+  background: linear-gradient(180deg, #2a2210, #1c1608);
+  border: 1px solid #3e3018;
+  border-bottom: 2px solid #0c0900;
+  border-radius: 4px;
+  color: #c8a040;
+  font-size: clamp(10px,1.1vw,15px);
+  width: clamp(32px,3.8vw,50px);
+  height: clamp(18px,2vw,26px);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: color .12s, background .12s, border-color .12s;
+  box-shadow: 0 2px 0 #060400, inset 0 1px 0 rgba(255,200,40,.06);
+  text-shadow: 0 0 6px rgba(200,160,40,.5);
+}
+.ch-btn:hover {
+  color: #ffdd60;
+  background: linear-gradient(180deg, #3a3018, #262010);
+  border-color: #6a5428;
+  text-shadow: 0 0 10px rgba(255,220,60,.7);
+}
+.ch-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #060400; }
 .ch-display {
-  flex: 1; text-align: center;
+  text-align: center;
   font-family: 'VT323', monospace;
-  font-size: clamp(13px,1.7vw,20px);
-  color: #4a3e18; letter-spacing: .12em;
+  font-size: clamp(14px,1.8vw,22px);
+  color: #d4a030;
+  letter-spacing: .14em;
+  text-shadow: 0 0 8px rgba(212,160,48,.45);
+  line-height: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
