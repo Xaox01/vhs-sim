@@ -622,45 +622,84 @@ body::after {
 .action-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #060400; }
 
 .ch-group {
-  display: flex; flex-direction: column; align-items: center;
-  gap: clamp(3px,.4vw,5px);
-  background: linear-gradient(180deg, #111008, #0c0a04);
-  border: 1px solid #2e2610;
-  border-bottom: 2px solid #060400;
-  border-radius: 5px;
-  padding: clamp(4px,.5vw,7px) clamp(6px,.8vw,10px);
-  box-shadow: 0 2px 0 #030200, inset 0 1px 0 rgba(255,200,40,.04);
+  display: flex; flex-direction: row; align-items: center;
+  gap: clamp(4px,.5vw,7px);
 }
+
 .ch-btn {
-  background: linear-gradient(180deg, #2a2210, #1c1608);
-  border: 1px solid #3e3018;
-  border-bottom: 2px solid #0c0900;
-  border-radius: 4px;
-  color: #c8a040;
-  font-size: clamp(10px,1.1vw,15px);
-  width: clamp(32px,3.8vw,50px);
-  height: clamp(18px,2vw,26px);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: color .12s, background .12s, border-color .12s;
-  box-shadow: 0 2px 0 #060400, inset 0 1px 0 rgba(255,200,40,.06);
-  text-shadow: 0 0 6px rgba(200,160,40,.5);
+  border-radius: clamp(5px,.7vw,8px);
+  width: clamp(38px,4.6vw,60px);
+  height: clamp(34px,4vw,52px);
+  position: relative;
+  transition: filter .1s, transform .1s;
+  user-select: none;
+
+  /* Korpus przycisku — ciemny plastik lat 00' */
+  background: linear-gradient(160deg, #2c2c34 0%, #18181e 55%, #111116 100%);
+  border: 1px solid #3a3a44;
+  border-top: 1px solid #4a4a58;
+  box-shadow:
+    0 4px 0 #08080c,
+    0 5px 8px rgba(0,0,0,.6),
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 -1px 0 rgba(0,0,0,.4);
 }
+
+/* Połysk — charakterystyczny dla plastiku 2000s */
+.ch-btn::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,.10) 0%,
+    rgba(255,255,255,.03) 45%,
+    transparent 46%
+  );
+  pointer-events: none;
+}
+
 .ch-btn:hover {
-  color: #ffdd60;
-  background: linear-gradient(180deg, #3a3018, #262010);
-  border-color: #6a5428;
-  text-shadow: 0 0 10px rgba(255,220,60,.7);
+  filter: brightness(1.18);
 }
-.ch-btn:active { transform: translateY(1px); box-shadow: 0 1px 0 #060400; }
+.ch-btn:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #08080c,
+    0 2px 4px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.04),
+    inset 0 2px 6px rgba(0,0,0,.4);
+}
+
+.ch-btn-label {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(6px,.65vw,9px);
+  color: #6a6a80;
+  letter-spacing: .12em;
+  line-height: 1;
+  margin-bottom: 1px;
+}
+.ch-btn-sym {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: clamp(14px,1.7vw,22px);
+  line-height: 1;
+  font-weight: bold;
+}
+.ch-prev .ch-btn-sym { color: #e06040; text-shadow: 0 0 8px rgba(220,80,40,.55); }
+.ch-next .ch-btn-sym { color: #40c070; text-shadow: 0 0 8px rgba(40,190,90,.55); }
+
+.ch-btn:active .ch-btn-sym { filter: brightness(1.3); }
+
 .ch-display {
   text-align: center;
   font-family: 'VT323', monospace;
-  font-size: clamp(14px,1.8vw,22px);
+  font-size: clamp(15px,2vw,26px);
   color: #d4a030;
   letter-spacing: .14em;
   text-shadow: 0 0 8px rgba(212,160,48,.45);
   line-height: 1;
+  min-width: clamp(42px,5vw,66px);
 }
 
 /* ═══════════════════════════════════════════════════════════════════
