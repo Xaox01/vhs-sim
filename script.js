@@ -401,13 +401,21 @@ function schedMins(t) {
   return h * 60 + m;
 }
 
+function getSimulatedDow() {
+  // Jeśli ustawiona data symulacji, użyj jej dnia tygodnia zamiast realnego
+  if (scheduleData.simulationDate) {
+    const [y, m, d] = scheduleData.simulationDate.split('-').map(Number);
+    return new Date(y, m - 1, d).getDay();
+  }
+  return new Date().getDay();
+}
+
 function getCurrentEntry(channelId) {
   const now  = new Date();
   const mins = now.getHours() * 60 + now.getMinutes();
-  const dow  = now.getDay();
+  const dow  = getSimulatedDow();
   return scheduleData.entries.find(e =>
     e.channelId === channelId &&
-    // pusta tablica dni = nadawaj codziennie
     (!Array.isArray(e.days) || e.days.length === 0 || e.days.includes(dow)) &&
     schedMins(e.startTime) <= mins &&
     schedMins(e.endTime)   >  mins
@@ -1159,9 +1167,19 @@ function showChBanner(ch, data, entry) {
   const now    = new Date();
   const HH     = now.getHours().toString().padStart(2,'0');
   const MM     = now.getMinutes().toString().padStart(2,'0');
-  const dd     = now.getDate().toString().padStart(2,'0');
-  const mm     = (now.getMonth()+1).toString().padStart(2,'0');
-  const dayStr = DAY_PL[now.getDay()];
+  // Data: symulowana jeśli ustawiona, inaczej realna
+  let dd, mm, dayStr;
+  if (scheduleData.simulationDate) {
+    const [sy, sm, sd] = scheduleData.simulationDate.split('-').map(Number);
+    const simD = new Date(sy, sm - 1, sd);
+    dd     = sd.toString().padStart(2,'0');
+    mm     = sm.toString().padStart(2,'0');
+    dayStr = DAY_PL[simD.getDay()];
+  } else {
+    dd     = now.getDate().toString().padStart(2,'0');
+    mm     = (now.getMonth()+1).toString().padStart(2,'0');
+    dayStr = DAY_PL[now.getDay()];
+  }
 
   // Pasek postępu programu
   let progHTML = '';
