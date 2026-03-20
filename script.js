@@ -56,7 +56,7 @@ const DEFAULTS = {
   flicker: false, interlace: false,
   phosphorColor: 'white',
   colorTemp: 0,
-  noise: 40, chroma: 50, tracking: 85, blur: 30,
+  noise: 12, chroma: 8, tracking: 97, blur: 6,
   hroll: false, magnetic: false,
   warp: 0, wowFlutter: false,
   tapeMode: 'SP',
@@ -369,19 +369,6 @@ vcrSlot.addEventListener('click', () => { if (!tapeInserted) openFilePicker(); }
 
 // ── Seek ──────────────────────────────────────────────────────────────────────
 let seeking = false;
-function doSeek(e) {
-  if (!hasVideo || !videoEl.duration) return;
-  const r = seekTrack.getBoundingClientRect();
-  videoEl.currentTime = Math.max(0, Math.min(1, (e.clientX - r.left)/r.width)) * videoEl.duration;
-}
-seekTrack.addEventListener('mousedown', e => { seeking=true; doSeek(e); });
-document.addEventListener('mousemove',  e => { if (seeking) doSeek(e); });
-document.addEventListener('mouseup',    () => { seeking=false; });
-tapeBar.addEventListener('click', e => {
-  if (!hasVideo || !videoEl.duration) return;
-  const r = tapeBar.getBoundingClientRect();
-  videoEl.currentTime = Math.max(0, Math.min(1, (e.clientX-r.left)/r.width)) * videoEl.duration;
-});
 
 // ── Kanały ────────────────────────────────────────────────────────────────────
 const CHANNELS = {
@@ -430,6 +417,7 @@ async function loadSchedule() {
   if (location.protocol === 'file:') return;
   try { scheduleData = await fetch('/api/schedule').then(r => r.json()); }
   catch(e) { /* serwer niedostępny, fallback na CHANNELS */ }
+  updateCh();
 }
 
 const channelFrame = document.getElementById('channelFrame');
@@ -459,7 +447,8 @@ function updateCh() {
   const schedCh = scheduleData.channels.find(c => c.id === channel);
   if (schedCh) {
     const entry = getCurrentEntry(channel);
-    showChBanner(channel, { name: schedCh.name, program: entry?.title || 'Brak programu', color: schedCh.color, logo: schedCh.logo || '' }, entry);
+    const entryTitle = entry?.title || (entry?.videoFile ? entry.videoFile.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') : '') || 'Brak programu';
+    showChBanner(channel, { name: schedCh.name, program: entryTitle, color: schedCh.color, logo: schedCh.logo || '' }, entry);
     if (!tapeInserted) insertTape();
     slotName.textContent = schedCh.name;
 
@@ -1614,7 +1603,7 @@ function pollGamepad() {
         case 'ch-up':    channel = channel >= schedChannelCount() ? 1 : channel + 1; updateCh(); wsSendState(); break;
         case 'ch-dn':    channel = channel <= 1 ? schedChannelCount() : channel - 1; updateCh(); wsSendState(); break;
         case 'ch-set':   if (d.ch >= 1 && d.ch <= schedChannelCount()) { channel = d.ch; updateCh(); wsSendState(); } break;
-        case undefined:  if (d.type === 'schedule') { scheduleData = d.data; } break;
+        case undefined:  if (d.type === 'schedule') { scheduleData = d.data; updateCh(); } break;
         case 'vol-up':   videoEl.volume = Math.min(1, videoEl.volume + 0.05); wsSendState(); break;
         case 'vol-dn':   videoEl.volume = Math.max(0, videoEl.volume - 0.05); wsSendState(); break;
         case 'vol-set':  if (d.vol !== undefined) videoEl.volume = Math.max(0, Math.min(1, d.vol)); break;

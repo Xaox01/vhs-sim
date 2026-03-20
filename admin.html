@@ -666,7 +666,7 @@ document.getElementById('entrySave').addEventListener('click', async () => {
     startTime: document.getElementById('fStart').value,
     endTime:   document.getElementById('fEnd').value,
     videoFile: document.getElementById('fVideo').value,
-    days:      [getSimulationDow()],   // zawsze tylko dzień symulacji
+    days:      [0,1,2,3,4,5,6],
   };
   if (!data.startTime || !data.endTime) { showToast('Podaj godziny'); return; }
   if (toMins(data.startTime) >= toMins(data.endTime)) { showToast('Godzina końca musi być po starcie'); return; }

@@ -197,7 +197,8 @@ const server = http.createServer((req, res) => {
 
   if (req.url.startsWith('/api/')) return handleAPI(req, res);
 
-  let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url);
+  const reqPath = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+  let filePath = path.join(__dirname, reqPath === '/' ? 'index.html' : reqPath);
   if (!filePath.startsWith(__dirname)) { res.writeHead(403); res.end(); return; }
 
   fs.stat(filePath, (err, stat) => {

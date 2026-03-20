@@ -375,11 +375,11 @@ body::after {
   background: linear-gradient(to top, rgba(0,0,0,.85), transparent);
   opacity: 0; pointer-events: none; transition: opacity .25s;
 }
-.screen:hover .seekbar { opacity: 1; pointer-events: all; }
+.screen:hover .seekbar { opacity: 1; pointer-events: none; }
 
 .seekbar-track {
   height: clamp(3px,.4vw,5px); background: rgba(255,255,255,.15);
-  border-radius: 3px; position: relative; cursor: pointer; margin-bottom: clamp(3px,.5vw,6px);
+  border-radius: 3px; position: relative; cursor: default; margin-bottom: clamp(3px,.5vw,6px);
 }
 .seekbar-fill  { height: 100%; background: var(--green); border-radius: 3px; width: 0%; pointer-events: none; }
 .seekbar-thumb {
@@ -587,7 +587,7 @@ body::after {
 .tp-bar {
   flex: 1; height: clamp(4px,.5vw,7px);
   background: #080600; border: 1px solid #1a1606;
-  border-radius: 2px; overflow: hidden; cursor: pointer;
+  border-radius: 2px; overflow: hidden; cursor: default;
   box-shadow: inset 0 2px 4px rgba(0,0,0,.9);
 }
 .tp-fill {
