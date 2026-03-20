@@ -305,6 +305,7 @@ function closeSettings() { settingsDrawer.classList.remove('open'); }
 
 document.getElementById('settingsBtn').addEventListener('click', openSettings);
 document.getElementById('settingsBtnVcr').addEventListener('click', openSettings);
+document.getElementById('floatSettingsBtn').addEventListener('click', openSettings);
 document.getElementById('settingsClose').addEventListener('click', closeSettings);
 
 // ── Plik wideo ────────────────────────────────────────────────────────────────
