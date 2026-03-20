@@ -279,6 +279,7 @@ let reelAngle    = 0;
 let lastTime     = 0;
 let sceneTime    = 0;
 let prevFrame    = null;
+let frameCount   = 0;
 let hrollActive      = false;
 let crtMagneticActive= false;
 let hrollOffset  = 0;
@@ -302,11 +303,15 @@ new ResizeObserver(resize).observe(screen);
 // ── Ustawienia drawer ─────────────────────────────────────────────────────────
 function openSettings()  { settingsDrawer.classList.add('open'); }
 function closeSettings() { settingsDrawer.classList.remove('open'); }
+function toggleSettings() { settingsDrawer.classList.toggle('open'); }
 
-document.getElementById('settingsBtn').addEventListener('click', openSettings);
-document.getElementById('settingsBtnVcr').addEventListener('click', openSettings);
-document.getElementById('floatSettingsBtn').addEventListener('click', openSettings);
+['settingsBtn','settingsBtnVcr','floatSettingsBtn'].forEach(id =>
+  document.getElementById(id).addEventListener('click', e => { e.stopPropagation(); toggleSettings(); })
+);
 document.getElementById('settingsClose').addEventListener('click', closeSettings);
+document.addEventListener('click', e => {
+  if (settingsDrawer.classList.contains('open') && !settingsDrawer.contains(e.target)) closeSettings();
+});
 
 // ── Plik wideo ────────────────────────────────────────────────────────────────
 const VIDEO_EXTS = /\.(mp4|webm|mov|avi|mkv|m4v|ogv|flv|wmv|ts|m2ts|3gp)$/i;
@@ -608,6 +613,7 @@ function update(dt) {
 }
 
 function renderFrame(dt) {
+  frameCount++;
   const W = canvas.width, H = canvas.height;
 
   if (!tapeInserted || state===ST.STOP) {
@@ -629,9 +635,9 @@ function renderFrame(dt) {
     } else {
       sceneTime+=dt; drawScene(W,H);
     }
-    if (S.warp > 0) applyTapeWarp(W,H);
-    applyVHS(W,H);
-    prevFrame = ctx.getImageData(0,0,W,H);
+    if (S.warp > 0 && frameCount % 2 === 0) applyTapeWarp(W,H);
+    if (frameCount % 2 === 0) applyVHS(W,H);
+    if (frameCount % 3 === 0) prevFrame = ctx.getImageData(0,0,W,H);
   }
 
   // Progress
