@@ -447,6 +447,7 @@ function updateCh() {
   const schedCh = scheduleData.channels.find(c => c.id === channel);
   if (schedCh) {
     const entry = getCurrentEntry(channel);
+    _lastEntryId = entry?.id ?? null;
     const entryTitle = entry?.title || (entry?.videoFile ? entry.videoFile.replace(/^.*[/\\]/, '').replace(/\.[^.]+$/, '') : '') || 'Brak programu';
     showChBanner(channel, { name: schedCh.name, program: entryTitle, color: schedCh.color, logo: schedCh.logo || '' }, entry);
     if (!tapeInserted) insertTape();
@@ -461,10 +462,10 @@ function updateCh() {
         hasVideo      = true;
         channelActive = true;
         videoEl.addEventListener('canplay', () => {
-          // Seekuj do bieżącej pozycji w programie (symulacja live TV)
-          const nowMins   = new Date().getHours() * 60 + new Date().getMinutes();
-          const offsetSec = (nowMins - schedMins(entry.startTime)) * 60;
-          if (offsetSec > 1 && isFinite(videoEl.duration) && offsetSec < videoEl.duration) {
+          const now       = new Date();
+          const nowSecs   = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+          const offsetSec = nowSecs - schedMins(entry.startTime) * 60;
+          if (offsetSec > 0 && isFinite(videoEl.duration) && offsetSec < videoEl.duration) {
             videoEl.currentTime = offsetSec;
           }
           setState(ST.PLAY);
@@ -988,7 +989,25 @@ function setState(newState) {
   }
 }
 
-videoEl.addEventListener('ended', ()=>setState(ST.STOP));
+videoEl.addEventListener('ended', () => {
+  if (channelActive && scheduleData.channels.find(c => c.id === channel)) {
+    updateCh(); // następny program w ramówce
+  } else {
+    setState(ST.STOP);
+  }
+});
+
+// ── Automatyczna zmiana programu (pilnuje zmiany slotu w czasie) ───────────────
+let _lastEntryId = null;
+setInterval(() => {
+  if (!channelActive) return;
+  const entry = getCurrentEntry(channel);
+  const id    = entry?.id ?? null;
+  if (id !== _lastEntryId) {
+    _lastEntryId = id;
+    updateCh();
+  }
+}, 30000);
 
 // ── Przyciski ─────────────────────────────────────────────────────────────────
 btns.play.addEventListener('click',  ()=>{ if(tapeInserted) setState(ST.PLAY);  else openFilePicker(); });
