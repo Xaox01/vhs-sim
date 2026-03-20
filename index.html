@@ -179,6 +179,21 @@
         </div>
       </div>
 
+      <!-- SEKCJA: SYMULACJA CZASU -->
+      <div class="s-section">
+        <div class="s-section-title">▸ SYMULACJA CZASU</div>
+        <div class="s-row">
+          <label>GODZINA</label>
+          <input type="time" id="sSimTime" style="background:#111;border:1px solid #333;color:#e8e0c0;padding:2px 6px;font-family:inherit;font-size:12px;border-radius:3px;width:90px;"/>
+          <button class="toggle-btn" id="sSimTimeSet">USTAW</button>
+        </div>
+        <div class="s-row" id="sSimTimeInfo" style="display:none">
+          <label>SIM</label>
+          <span id="sSimTimeDisplay" style="color:#e8a020;font-size:12px;letter-spacing:.05em"></span>
+          <button class="toggle-btn" id="sSimTimeReset">RESET</button>
+        </div>
+      </div>
+
       <!-- Reset -->
       <button class="s-reset-btn" id="sReset">↺ PRZYWRÓĆ DOMYŚLNE</button>
 

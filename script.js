@@ -132,6 +132,36 @@ document.querySelectorAll('.tape-mode-btn').forEach(btn => {
   });
 });
 
+// Symulacja czasu
+function updateSimTimeDisplay() {
+  const info = document.getElementById('sSimTimeInfo');
+  const disp = document.getElementById('sSimTimeDisplay');
+  if (simTimeOffset === 0) { info.style.display = 'none'; return; }
+  const n = simulatedNow();
+  disp.textContent = `${n.getHours().toString().padStart(2,'0')}:${n.getMinutes().toString().padStart(2,'0')}:${n.getSeconds().toString().padStart(2,'0')}`;
+  info.style.display = '';
+}
+setInterval(updateSimTimeDisplay, 1000);
+
+document.getElementById('sSimTimeSet').addEventListener('click', () => {
+  const val = document.getElementById('sSimTime').value;
+  if (!val) return;
+  const [h, m] = val.split(':').map(Number);
+  const real = new Date();
+  const targetSecs  = h * 3600 + m * 60;
+  const currentSecs = real.getHours() * 3600 + real.getMinutes() * 60 + real.getSeconds();
+  simTimeOffset = targetSecs - currentSecs;
+  updateSimTimeDisplay();
+  updateCh();
+});
+
+document.getElementById('sSimTimeReset').addEventListener('click', () => {
+  simTimeOffset = 0;
+  document.getElementById('sSimTime').value = '';
+  updateSimTimeDisplay();
+  updateCh();
+});
+
 // Reset
 document.getElementById('sReset').addEventListener('click', () => {
   S = { ...DEFAULTS };
@@ -388,6 +418,10 @@ function schedMins(t) {
   return h * 60 + m;
 }
 
+// ── Symulacja czasu ───────────────────────────────────────────────────────────
+let simTimeOffset = 0; // sekundy przesunięcia względem czasu rzeczywistego
+function simulatedNow() { return new Date(Date.now() + simTimeOffset * 1000); }
+
 function getSimulatedDow() {
   // Jeśli ustawiona data symulacji, użyj jej dnia tygodnia zamiast realnego
   if (scheduleData.simulationDate) {
@@ -398,7 +432,7 @@ function getSimulatedDow() {
 }
 
 function getCurrentEntry(channelId) {
-  const now  = new Date();
+  const now  = simulatedNow();
   const mins = now.getHours() * 60 + now.getMinutes();
   const dow  = getSimulatedDow();
   return scheduleData.entries.find(e =>
@@ -462,7 +496,7 @@ function updateCh() {
         hasVideo      = true;
         channelActive = true;
         videoEl.addEventListener('canplay', () => {
-          const now       = new Date();
+          const now       = simulatedNow();
           const nowSecs   = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
           const offsetSec = nowSecs - schedMins(entry.startTime) * 60;
           if (offsetSec > 0 && isFinite(videoEl.duration) && offsetSec < videoEl.duration) {
@@ -1172,7 +1206,7 @@ function showChBanner(ch, data, entry) {
   const color   = data?.color   || '#c8870a';
   const logo    = data?.logo    || '';
 
-  const now    = new Date();
+  const now    = simulatedNow();
   const HH     = now.getHours().toString().padStart(2,'0');
   const MM     = now.getMinutes().toString().padStart(2,'0');
   // Data: symulowana jeśli ustawiona, inaczej realna
